@@ -35,7 +35,9 @@
         {
           "cameraPermission": "Necesitamos acceso a la cámara para escanear códigos de barras."
         }
-      ]
+      ],
+      "expo-font",
+      "expo-asset"
     ],
     "scheme": "alcalacomics",
     "newArchEnabled": false,

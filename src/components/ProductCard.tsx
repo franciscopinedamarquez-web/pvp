@@ -1,104 +1,98 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Colors, Spacing, BorderRadius } from '../utils/theme';
 import type { Product } from '../services/productService';
 
 interface ProductCardProps {
   product: Product;
   onPress?: () => void;
-  compact?: boolean;
 }
 
-const CATEGORY_LABELS: Record<Product['category'], string> = {
-  comics: '📚 CÓMIC', manga: '🎌 MANGA', juegos: '🎲 JUEGO', merchandising: '🎁 MERCH', libros: '📖 LIBRO',
-};
-
 const CATEGORY_COLORS: Record<Product['category'], string> = {
-  comics: Colors.comics, manga: Colors.manga, juegos: Colors.juegos, merchandising: Colors.merch, libros: Colors.libros,
+  comics: Colors.comics, manga: Colors.manga, juegos: Colors.juegos,
+  merchandising: Colors.merch, libros: Colors.libros,
 };
 
-export default function ProductCard({ product, onPress, compact = false }: ProductCardProps) {
+const CATEGORY_LABELS: Record<Product['category'], string> = {
+  comics: 'CÓMIC', manga: 'MANGA', juegos: 'JUEGO', merchandising: 'MERCH', libros: 'LIBRO',
+};
+
+const CAT_EMOJI: Record<Product['category'], string> = {
+  comics: '📚', manga: '🎌', juegos: '🎲', merchandising: '🎁', libros: '📖',
+};
+
+function formatPrice(price: string): string {
+  const n = parseFloat(price);
+  if (isNaN(n)) return '—';
+  return n % 1 === 0 ? `${n} €` : `${n.toFixed(2).replace('.', ',')} €`;
+}
+
+export default function ProductCard({ product, onPress }: ProductCardProps) {
+  const [imgError, setImgError] = useState(false);
   const categoryColor = CATEGORY_COLORS[product.category];
-  const isOnSale = !!product.salePrice;
   const isOutOfStock = product.stockStatus === 'outofstock';
   const isLowStock = product.stockQuantity > 0 && product.stockQuantity <= 2;
+  const isOnSale = !!product.salePrice && product.salePrice !== product.regularPrice;
+  const stockColor = isOutOfStock ? Colors.error : isLowStock ? Colors.warning : Colors.success;
+  const stockLabel = isOutOfStock ? 'Agotado' : isLowStock ? `${product.stockQuantity} ud` : `${product.stockQuantity} uds`;
 
   return (
-    <TouchableOpacity style={[styles.card, compact && styles.cardCompact]} onPress={onPress} activeOpacity={0.85}>
-      <View style={[styles.categoryBar, { backgroundColor: categoryColor }]} />
-      <View style={styles.content}>
-        <View style={styles.header}>
-          <View style={[styles.categoryBadge, { backgroundColor: categoryColor + '22', borderColor: categoryColor + '55' }]}>
-            <Text style={[styles.categoryText, { color: categoryColor }]}>{CATEGORY_LABELS[product.category]}</Text>
-          </View>
-          <View style={[styles.stockBadge, isOutOfStock ? { backgroundColor: Colors.error + '22', borderColor: Colors.error + '55' } : isLowStock ? { backgroundColor: Colors.warning + '22', borderColor: Colors.warning + '55' } : { backgroundColor: Colors.success + '22', borderColor: Colors.success + '55' }]}>
-            <Text style={[styles.stockBadgeText, { color: isOutOfStock ? Colors.error : isLowStock ? Colors.warning : Colors.success }]}>
-              {isOutOfStock ? '⊘ Agotado' : isLowStock ? '⚠ Últimas unidades' : '✓ Disponible'}
-            </Text>
-          </View>
-        </View>
-        <Text style={styles.name} numberOfLines={compact ? 1 : 2}>{product.name}</Text>
-        <View style={styles.meta}>
-          {product.publisher && <Text style={styles.metaText}>{product.publisher}</Text>}
-          {product.author && <Text style={styles.metaText}>· {product.author}</Text>}
-        </View>
-        <Text style={styles.sku}>SKU: {product.sku}</Text>
-        {!compact && (
-          <>
-            <View style={styles.divider} />
-            <View style={styles.footer}>
-              <View style={styles.priceContainer}>
-                {isOnSale && <Text style={styles.originalPrice}>{product.regularPrice} €</Text>}
-                <Text style={[styles.price, isOnSale && styles.salePrice]}>{product.price} €</Text>
-                {isOnSale && <View style={styles.saleBadge}><Text style={styles.saleText}>OFERTA</Text></View>}
-              </View>
-              <View style={styles.stockInfo}>
-                <Text style={[styles.stockNumber, { color: isOutOfStock ? Colors.error : isLowStock ? Colors.warning : Colors.success }]}>
-                  {isOutOfStock ? '0' : product.stockQuantity}
-                </Text>
-                <Text style={styles.stockLabel}>uds.</Text>
-              </View>
-            </View>
-          </>
-        )}
-        {compact && (
-          <View style={styles.compactFooter}>
-            <Text style={styles.price}>{product.price} €</Text>
-            <Text style={[styles.compactStock, { color: isOutOfStock ? Colors.error : isLowStock ? Colors.warning : Colors.success }]}>
-              {isOutOfStock ? 'Agotado' : `${product.stockQuantity} uds`}
-            </Text>
+    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.82}>
+      <View style={styles.imageWrapper}>
+        {product.imageUrl && !imgError ? (
+          <Image source={{ uri: product.imageUrl }} style={styles.image} resizeMode="cover" onError={() => setImgError(true)} />
+        ) : (
+          <View style={[styles.imagePlaceholder, { backgroundColor: categoryColor + '22' }]}>
+            <Text style={styles.placeholderEmoji}>{CAT_EMOJI[product.category]}</Text>
           </View>
         )}
+        <View style={[styles.catPill, { backgroundColor: categoryColor }]}>
+          <Text style={styles.catPillText}>{CATEGORY_LABELS[product.category]}</Text>
+        </View>
+      </View>
+      <View style={styles.info}>
+        <Text style={styles.name} numberOfLines={2}>{product.name}</Text>
+        {product.publisher && <Text style={styles.publisher} numberOfLines={1}>{product.publisher}</Text>}
+        <View style={styles.priceRow}>
+          {isOnSale ? (
+            <>
+              <Text style={styles.priceOld}>{formatPrice(product.regularPrice)}</Text>
+              <Text style={styles.priceSale}>{formatPrice(product.salePrice!)}</Text>
+              <View style={styles.saleBadge}>
+                <Text style={styles.saleBadgeText}>-{Math.round((1 - parseFloat(product.salePrice!) / parseFloat(product.regularPrice)) * 100)}%</Text>
+              </View>
+            </>
+          ) : (
+            <Text style={styles.price}>{formatPrice(product.price)}</Text>
+          )}
+        </View>
+        <View style={[styles.stockRow, { borderColor: stockColor + '44', backgroundColor: stockColor + '14' }]}>
+          <View style={[styles.stockDot, { backgroundColor: stockColor }]} />
+          <Text style={[styles.stockText, { color: stockColor }]}>{stockLabel}</Text>
+        </View>
       </View>
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: Colors.card, borderRadius: BorderRadius.lg, marginHorizontal: Spacing.md, marginVertical: Spacing.sm, overflow: 'hidden', flexDirection: 'row', borderWidth: 1, borderColor: Colors.border },
-  cardCompact: { marginHorizontal: 0, marginVertical: 4 },
-  categoryBar: { width: 4 },
-  content: { flex: 1, padding: Spacing.md },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm, flexWrap: 'wrap', gap: 4 },
-  categoryBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: BorderRadius.sm, borderWidth: 1 },
-  categoryText: { fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
-  stockBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: BorderRadius.sm, borderWidth: 1 },
-  stockBadgeText: { fontSize: 10, fontWeight: '600' },
-  name: { color: Colors.textPrimary, fontSize: 15, fontWeight: '700', lineHeight: 20, marginBottom: 4 },
-  meta: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 2 },
-  metaText: { color: Colors.textSecondary, fontSize: 12, marginRight: 4 },
-  sku: { color: Colors.textMuted, fontSize: 11, fontFamily: 'monospace', marginTop: 2 },
-  divider: { height: 1, backgroundColor: Colors.border, marginVertical: Spacing.sm },
-  footer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
-  priceContainer: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
-  price: { color: Colors.primary, fontSize: 22, fontWeight: '800' },
-  salePrice: { color: Colors.accentLight },
-  originalPrice: { color: Colors.textMuted, fontSize: 13, textDecorationLine: 'line-through' },
-  saleBadge: { backgroundColor: Colors.accent, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
-  saleText: { color: '#fff', fontSize: 10, fontWeight: '800' },
-  stockInfo: { alignItems: 'flex-end' },
-  stockNumber: { fontSize: 28, fontWeight: '800' },
-  stockLabel: { color: Colors.textMuted, fontSize: 11, marginTop: -4 },
-  compactFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },
-  compactStock: { fontSize: 12, fontWeight: '600' },
+  card: { backgroundColor: Colors.card, borderRadius: BorderRadius.lg, marginHorizontal: Spacing.md, marginVertical: 6, overflow: 'hidden', flexDirection: 'row', borderWidth: 1, borderColor: Colors.border },
+  imageWrapper: { width: 90, height: 110, position: 'relative' },
+  image: { width: '100%', height: '100%' },
+  imagePlaceholder: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' },
+  placeholderEmoji: { fontSize: 32 },
+  catPill: { position: 'absolute', bottom: 4, left: 4, paddingHorizontal: 5, paddingVertical: 2, borderRadius: 4 },
+  catPillText: { color: '#fff', fontSize: 8, fontWeight: '800', letterSpacing: 0.3 },
+  info: { flex: 1, padding: 10, justifyContent: 'space-between' },
+  name: { color: Colors.textPrimary, fontSize: 13, fontWeight: '700', lineHeight: 18, marginBottom: 2 },
+  publisher: { color: Colors.textMuted, fontSize: 11, marginBottom: 6 },
+  priceRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6, flexWrap: 'wrap' },
+  price: { color: Colors.primary, fontSize: 20, fontWeight: '800' },
+  priceSale: { color: Colors.accentLight, fontSize: 20, fontWeight: '800' },
+  priceOld: { color: Colors.textMuted, fontSize: 12, textDecorationLine: 'line-through' },
+  saleBadge: { backgroundColor: Colors.accent, paddingHorizontal: 5, paddingVertical: 2, borderRadius: 4 },
+  saleBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
+  stockRow: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, borderWidth: 1, alignSelf: 'flex-start' },
+  stockDot: { width: 6, height: 6, borderRadius: 3 },
+  stockText: { fontSize: 11, fontWeight: '700' },
 });

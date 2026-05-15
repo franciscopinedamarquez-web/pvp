@@ -1,134 +1,170 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import React, { useState, useCallback, useRef } from 'react';
+import {
+  View, Text, StyleSheet, TextInput, FlatList,
+  TouchableOpacity, ActivityIndicator, Keyboard,
+  KeyboardAvoidingView, Platform, SafeAreaView,
+} from 'react-native';
+import { useRouter } from 'expo-router';
 import { Colors, Spacing, BorderRadius } from '../utils/theme';
-import { getAllProducts } from '../services/productService';
+import { searchByText, getAllProducts } from '../services/productService';
 import type { Product } from '../services/productService';
+import ProductCard from '../components/ProductCard';
+import ProductDetail from '../components/ProductDetail';
 
-interface Stats {
-  total: number; inStock: number; outOfStock: number; lowStock: number; onSale: number;
-  byCategory: Record<string, number>;
-}
+const CATEGORIES = [
+  { key: 'all', label: 'Todo' },
+  { key: 'comics', label: 'Cómics' },
+  { key: 'manga', label: 'Manga' },
+  { key: 'juegos', label: 'Juegos' },
+  { key: 'merchandising', label: 'Merch' },
+  { key: 'libros', label: 'Libros' },
+] as const;
 
 export default function HomeScreen() {
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [lowStockItems, setLowStockItems] = useState<Product[]>([]);
+  const router = useRouter();
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [searched, setSearched] = useState(false);
+  const [activeCategory, setActiveCategory] = useState<string>('all');
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const inputRef = useRef<TextInput>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
-  useEffect(() => { loadStats(); }, []);
+  const handleSearch = useCallback(async (text: string, category: string) => {
+    clearTimeout(debounceRef.current);
+    if (!text.trim() && category === 'all') { setResults([]); setSearched(false); return; }
+    debounceRef.current = setTimeout(async () => {
+      setLoading(true);
+      try {
+        let products = text.trim() ? await searchByText(text) : await getAllProducts();
+        if (category !== 'all') products = products.filter(p => p.category === category);
+        setResults(products); setSearched(true);
+      } finally { setLoading(false); }
+    }, 350);
+  }, []);
 
-  const loadStats = async () => {
-    try {
-      const products = await getAllProducts();
-      const low = products.filter(p => p.stockQuantity > 0 && p.stockQuantity <= 2);
-      setLowStockItems(low);
-      setStats({
-        total: products.length,
-        inStock: products.filter(p => p.stockStatus === 'instock').length,
-        outOfStock: products.filter(p => p.stockStatus === 'outofstock').length,
-        lowStock: low.length,
-        onSale: products.filter(p => !!p.salePrice).length,
-        byCategory: products.reduce((acc, p) => { acc[p.category] = (acc[p.category] || 0) + 1; return acc; }, {} as Record<string, number>),
-      });
-    } finally { setLoading(false); }
-  };
+  const handleQueryChange = (text: string) => { setQuery(text); handleSearch(text, activeCategory); };
+  const handleCategoryChange = (cat: string) => { setActiveCategory(cat); handleSearch(query, cat); };
+  const handleClear = () => { setQuery(''); setResults([]); setSearched(false); setActiveCategory('all'); inputRef.current?.focus(); };
 
-  const hour = new Date().getHours();
-  const greeting = hour < 13 ? 'Buenos días' : hour < 20 ? 'Buenas tardes' : 'Buenas noches';
+  if (selectedProduct) return <ProductDetail product={selectedProduct} onClose={() => setSelectedProduct(null)} />;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <View style={styles.hero}>
-        <View style={styles.heroText}>
-          <Text style={styles.greeting}>{greeting} 👋</Text>
-          <Text style={styles.heroTitle}>Panel de Control</Text>
-          <Text style={styles.heroSubtitle}>Alcalá Cómics · Staff App</Text>
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <View style={styles.header}>
+          <Text style={styles.logo}>🦸 Alcalá Cómics</Text>
+          <Text style={styles.logoSub}>Consultor de productos</Text>
         </View>
-        <View style={styles.logoBox}><Text style={styles.logoEmoji}>🦸</Text></View>
-      </View>
-      {loading ? (
-        <View style={styles.loadingBox}><ActivityIndicator color={Colors.primary} /></View>
-      ) : stats ? (
-        <>
-          <View style={styles.statsGrid}>
-            {[
-              { value: stats.total, label: 'Productos', color: Colors.info, icon: '📦' },
-              { value: stats.inStock, label: 'En stock', color: Colors.success, icon: '✅' },
-              { value: stats.outOfStock, label: 'Agotados', color: Colors.error, icon: '⊘' },
-              { value: stats.onSale, label: 'En oferta', color: Colors.accent, icon: '🏷' },
-            ].map((s, i) => (
-              <View key={i} style={[styles.statCard, { borderColor: s.color + '33' }]}>
-                <Text style={styles.statIcon}>{s.icon}</Text>
-                <Text style={[styles.statValue, { color: s.color }]}>{s.value}</Text>
-                <Text style={styles.statLabel}>{s.label}</Text>
-              </View>
-            ))}
+        <View style={styles.searchSection}>
+          <View style={styles.inputWrapper}>
+            <Text style={styles.searchIcon}>🔍</Text>
+            <TextInput
+              ref={inputRef}
+              style={styles.input}
+              value={query}
+              onChangeText={handleQueryChange}
+              placeholder="Buscar por nombre, SKU, editorial..."
+              placeholderTextColor={Colors.textMuted}
+              returnKeyType="search"
+              autoCorrect={false}
+              autoCapitalize="none"
+            />
+            {query.length > 0 && (
+              <TouchableOpacity onPress={handleClear} style={styles.clearButton}>
+                <Text style={styles.clearText}>✕</Text>
+              </TouchableOpacity>
+            )}
           </View>
-          {lowStockItems.length > 0 && (
-            <View style={styles.alertBox}>
-              <View style={styles.alertHeader}>
-                <Text style={styles.alertIcon}>⚠️</Text>
-                <Text style={styles.alertTitle}>{lowStockItems.length} producto{lowStockItems.length > 1 ? 's' : ''} con stock bajo</Text>
-              </View>
-              {lowStockItems.map(p => (
-                <View key={p.id} style={styles.alertItem}>
-                  <Text style={styles.alertItemName} numberOfLines={1}>{p.name}</Text>
-                  <Text style={styles.alertItemStock}>{p.stockQuantity} ud{p.stockQuantity !== 1 ? 's' : ''}</Text>
-                </View>
-              ))}
-            </View>
-          )}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Productos por categoría</Text>
-            <View style={styles.categoryGrid}>
-              {[
-                { key: 'comics', label: 'Cómics', icon: '📚', color: Colors.comics },
-                { key: 'manga', label: 'Manga', icon: '🎌', color: Colors.manga },
-                { key: 'juegos', label: 'Juegos', icon: '🎲', color: Colors.juegos },
-                { key: 'merchandising', label: 'Merch', icon: '🎁', color: Colors.merch },
-                { key: 'libros', label: 'Libros', icon: '📖', color: Colors.libros },
-              ].map(cat => (
-                <View key={cat.key} style={[styles.categoryCard, { borderColor: cat.color + '44', backgroundColor: cat.color + '12' }]}>
-                  <Text style={styles.catIcon}>{cat.icon}</Text>
-                  <Text style={[styles.catCount, { color: cat.color }]}>{stats.byCategory[cat.key] || 0}</Text>
-                  <Text style={styles.catLabel}>{cat.label}</Text>
-                </View>
-              ))}
-            </View>
+          <FlatList
+            horizontal
+            data={CATEGORIES}
+            keyExtractor={item => item.key}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoryList}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[styles.categoryChip, activeCategory === item.key && styles.categoryChipActive]}
+                onPress={() => handleCategoryChange(item.key)}
+              >
+                <Text style={[styles.categoryChipText, activeCategory === item.key && styles.categoryChipTextActive]}>
+                  {item.label}
+                </Text>
+              </TouchableOpacity>
+            )}
+          />
+        </View>
+        {!searched && !loading && (
+          <TouchableOpacity
+            style={styles.scanButton}
+            onPress={() => { Keyboard.dismiss(); router.push('/scanner'); }}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.scanIcon}>📷</Text>
+            <Text style={styles.scanText}>Escanear código de barras</Text>
+            <Text style={styles.scanArrow}>→</Text>
+          </TouchableOpacity>
+        )}
+        {loading ? (
+          <View style={styles.centerState}>
+            <ActivityIndicator color={Colors.primary} size="large" />
+            <Text style={styles.loadingText}>Buscando...</Text>
           </View>
-        </>
-      ) : null}
-    </ScrollView>
+        ) : !searched ? (
+          <View style={styles.centerState}>
+            <Text style={styles.emptyIcon}>🗂</Text>
+            <Text style={styles.emptyTitle}>Consulta un producto</Text>
+            <Text style={styles.emptySubtitle}>Escribe en el buscador o escanea el código de barras.</Text>
+          </View>
+        ) : results.length === 0 ? (
+          <View style={styles.centerState}>
+            <Text style={styles.emptyIcon}>😕</Text>
+            <Text style={styles.emptyTitle}>Sin resultados</Text>
+            <Text style={styles.emptySubtitle}>No se encontró "{query}".</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={results}
+            keyExtractor={item => item.id.toString()}
+            renderItem={({ item }) => (
+              <ProductCard product={item} onPress={() => { Keyboard.dismiss(); setSelectedProduct(item); }} />
+            )}
+            contentContainerStyle={styles.listContent}
+            keyboardShouldPersistTaps="handled"
+            ListHeaderComponent={<Text style={styles.resultCount}>{results.length} producto{results.length !== 1 ? 's' : ''}</Text>}
+          />
+        )}
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  content: { padding: Spacing.md, paddingBottom: Spacing.xxl },
-  hero: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: Colors.surface, borderRadius: BorderRadius.xl, padding: Spacing.lg, marginBottom: Spacing.md, borderWidth: 1, borderColor: Colors.border },
-  heroText: { flex: 1 },
-  greeting: { color: Colors.textMuted, fontSize: 13, marginBottom: 2 },
-  heroTitle: { color: Colors.textPrimary, fontSize: 22, fontWeight: '800' },
-  heroSubtitle: { color: Colors.primary, fontSize: 13, fontWeight: '600', marginTop: 2 },
-  logoBox: { width: 60, height: 60, borderRadius: BorderRadius.md, backgroundColor: Colors.primary + '22', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.primary + '44' },
-  logoEmoji: { fontSize: 30 },
-  loadingBox: { padding: Spacing.xl, alignItems: 'center' },
-  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.md },
-  statCard: { flex: 1, minWidth: '45%', backgroundColor: Colors.card, borderRadius: BorderRadius.lg, padding: Spacing.md, alignItems: 'center', borderWidth: 1 },
-  statIcon: { fontSize: 22, marginBottom: 4 },
-  statValue: { fontSize: 28, fontWeight: '800' },
-  statLabel: { color: Colors.textMuted, fontSize: 12, marginTop: 2 },
-  alertBox: { backgroundColor: Colors.warning + '10', borderRadius: BorderRadius.lg, padding: Spacing.md, marginBottom: Spacing.md, borderWidth: 1, borderColor: Colors.warning + '44' },
-  alertHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: Spacing.sm },
-  alertIcon: { fontSize: 16 },
-  alertTitle: { color: Colors.warning, fontWeight: '700', fontSize: 14 },
-  alertItem: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5, borderTopWidth: 1, borderTopColor: Colors.warning + '22' },
-  alertItemName: { color: Colors.textSecondary, fontSize: 13, flex: 1, marginRight: 8 },
-  alertItemStock: { color: Colors.warning, fontWeight: '700', fontSize: 13 },
-  section: { marginBottom: Spacing.md },
-  sectionTitle: { color: Colors.textSecondary, fontSize: 12, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: Spacing.sm },
-  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
-  categoryCard: { flex: 1, minWidth: '28%', borderRadius: BorderRadius.md, padding: Spacing.sm, alignItems: 'center', borderWidth: 1 },
-  catIcon: { fontSize: 20, marginBottom: 2 },
-  catCount: { fontSize: 22, fontWeight: '800' },
-  catLabel: { color: Colors.textMuted, fontSize: 11, marginTop: 2 },
+  header: { paddingHorizontal: Spacing.md, paddingTop: Spacing.md, paddingBottom: Spacing.sm },
+  logo: { color: Colors.primary, fontSize: 18, fontWeight: '800' },
+  logoSub: { color: Colors.textMuted, fontSize: 12, marginTop: 1 },
+  searchSection: { backgroundColor: Colors.surface, paddingTop: Spacing.sm, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  inputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surfaceElevated, borderRadius: BorderRadius.md, marginHorizontal: Spacing.md, marginBottom: Spacing.sm, paddingHorizontal: Spacing.sm, borderWidth: 1, borderColor: Colors.border },
+  searchIcon: { fontSize: 16, marginRight: 6 },
+  input: { flex: 1, color: Colors.textPrimary, fontSize: 15, paddingVertical: 12 },
+  clearButton: { padding: 6 },
+  clearText: { color: Colors.textMuted, fontSize: 14, fontWeight: '700' },
+  categoryList: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.sm, gap: 8 },
+  categoryChip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: BorderRadius.full, backgroundColor: Colors.surfaceElevated, borderWidth: 1, borderColor: Colors.border },
+  categoryChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  categoryChipText: { color: Colors.textSecondary, fontSize: 12, fontWeight: '600' },
+  categoryChipTextActive: { color: Colors.textOnPrimary },
+  scanButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surface, marginHorizontal: Spacing.md, marginTop: Spacing.md, padding: Spacing.md, borderRadius: BorderRadius.lg, borderWidth: 1, borderColor: Colors.primary + '55', gap: 10 },
+  scanIcon: { fontSize: 22 },
+  scanText: { flex: 1, color: Colors.primary, fontSize: 15, fontWeight: '700' },
+  scanArrow: { color: Colors.primary, fontSize: 18, fontWeight: '700' },
+  centerState: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xl },
+  emptyIcon: { fontSize: 48, marginBottom: Spacing.md },
+  emptyTitle: { color: Colors.textPrimary, fontSize: 18, fontWeight: '700', marginBottom: 8 },
+  emptySubtitle: { color: Colors.textMuted, fontSize: 14, textAlign: 'center', lineHeight: 22 },
+  loadingText: { color: Colors.textSecondary, marginTop: 12, fontSize: 15 },
+  listContent: { paddingTop: Spacing.sm, paddingBottom: Spacing.xl },
+  resultCount: { color: Colors.textMuted, fontSize: 12, paddingHorizontal: Spacing.lg, paddingBottom: 4 },
 });
