@@ -1,0 +1,33 @@
+# Dependencias
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+
+# Variables de entorno — NUNCA subir a GitHub
+.env
+.env.local
+.env.production
+
+# Proyecto nativo generado (se genera automáticamente)
+android/
+ios/
+
+# Logs
+npm-debug.*
+*.log
+yarn-error.*
+
+# Certificados y claves locales
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
