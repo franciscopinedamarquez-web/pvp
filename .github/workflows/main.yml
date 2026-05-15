@@ -8,34 +8,58 @@ on:
 jobs:
   build-android:
     name: Compilar APK Android
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+
       - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
+
       - name: Instalar dependencias
         run: npm install
+
+      - name: Instalar Expo CLI
+        run: npm install -g expo-cli@latest
+
       - name: Crear .env
         run: |
           echo "EXPO_PUBLIC_WC_URL=${{ secrets.EXPO_PUBLIC_WC_URL }}" >> .env
           echo "EXPO_PUBLIC_WC_KEY=${{ secrets.EXPO_PUBLIC_WC_KEY }}" >> .env
           echo "EXPO_PUBLIC_WC_SECRET=${{ secrets.EXPO_PUBLIC_WC_SECRET }}" >> .env
+
       - name: Prebuild Expo
         run: npx expo prebuild --platform android --clean
+        env:
+          EXPO_PUBLIC_WC_URL: ${{ secrets.EXPO_PUBLIC_WC_URL }}
+          EXPO_PUBLIC_WC_KEY: ${{ secrets.EXPO_PUBLIC_WC_KEY }}
+          EXPO_PUBLIC_WC_SECRET: ${{ secrets.EXPO_PUBLIC_WC_SECRET }}
+
       - name: Compilar APK
-        run: cd android && chmod +x gradlew && ./gradlew assembleRelease --no-daemon
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.daemon=false -Xmx4g"
+
       - name: Copiar APK
-        run: cp $(find android -name "*.apk" | head -1) alcala-comics-staff.apk
+        run: |
+          APK=$(find android -name "*.apk" | head -1)
+          echo "APK encontrado: $APK"
+          cp "$APK" alcala-comics-staff.apk
+
       - uses: actions/upload-artifact@v4
         with:
           name: alcala-comics-staff-apk
           path: alcala-comics-staff.apk
           retention-days: 30
+
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
