@@ -1,0 +1,116 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    name: Compilar APK Android
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - name: Instalar dependencias
+        run: npm install
+      - name: Crear .env
+        run: |
+          echo "EXPO_PUBLIC_WC_URL=${{ secrets.EXPO_PUBLIC_WC_URL }}" >> .env
+          echo "EXPO_PUBLIC_WC_KEY=${{ secrets.EXPO_PUBLIC_WC_KEY }}" >> .env
+          echo "EXPO_PUBLIC_WC_SECRET=${{ secrets.EXPO_PUBLIC_WC_SECRET }}" >> .env
+      - name: Prebuild Expo
+        run: npx expo prebuild --platform android --clean
+      - name: Compilar APK
+        run: cd android && chmod +x gradlew && ./gradlew assembleRelease --no-daemon
+      - name: Copiar APK
+        run: cp $(find android
+
+cat > .github/workflows/build-android.yml << 'EOF'
+name: Build Android APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    name: Compilar APK Android
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - name: Instalar dependencias
+        run: npm install
+      - name: Crear .env
+        run: |
+          echo "EXPO_PUBLIC_WC_URL=${{ secrets.EXPO_PUBLIC_WC_URL }}" >> .env
+          echo "EXPO_PUBLIC_WC_KEY=${{ secrets.EXPO_PUBLIC_WC_KEY }}" >> .env
+          echo "EXPO_PUBLIC_WC_SECRET=${{ secrets.EXPO_PUBLIC_WC_SECRET }}" >> .env
+      - name: Prebuild Expo
+        run: npx expo prebuild --platform android --clean
+      - name: Compilar APK
+        run: cd android && chmod +x gradlew && ./gradlew assembleRelease --no-daemon
+      - name: Copiar APK
+        run: cp $(find androidcat > .github/workflows/build-android.yml << 'EOF'
+name: Build Android APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    name: Compilar APK Android
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - name: Instalar dependencias
+        run: npm install
+      - name: Crear .env
+        run: |
+          echo "EXPO_PUBLIC_WC_URL=${{ secrets.EXPO_PUBLIC_WC_URL }}" >> .env
+          echo "EXPO_PUBLIC_WC_KEY=${{ secrets.EXPO_PUBLIC_WC_KEY }}" >> .env
+          echo "EXPO_PUBLIC_WC_SECRET=${{ secrets.EXPO_PUBLIC_WC_SECRET }}" >> .env
+      - name: Prebuild Expo
+        run: npx expo prebuild --platform android --clean
+      - name: Compilar APK
+        run: cd android && chmod +x gradlew && ./gradlew assembleRelease --no-daemon
+      - name: Copiar APK
+        run: cp $(find android -name "*.apk" | head -1) alcala-comics-staff.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: alcala-comics-staff-apk
+          path: alcala-comics-staff.apk
+          retention-days: 30
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: "App Staff v${{ github.run_number }}"
+          files: alcala-comics-staff.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
