@@ -24,6 +24,13 @@ function apiUrl(path: string, params: Record<string, string> = {}): string {
   return `${WC_URL}${path}?${qs.toString()}`;
 }
 
+// Redondea a 2 decimales igual que WooCommerce en la web
+function roundPrice(value: string | undefined): string {
+  if (!value || value === '') return '';
+  const n = Math.round(parseFloat(value) * 100) / 100;
+  return isNaN(n) ? '' : n.toFixed(2);
+}
+
 export async function searchByBarcode(barcode: string): Promise<Product | null> {
   try {
     const res = await fetch(apiUrl('/products', { sku: barcode, per_page: '1' }));
@@ -67,16 +74,42 @@ export async function getAllProducts(): Promise<Product[]> {
   }
 }
 
+export async function getOutOfStockProducts(): Promise<Product[]> {
+  try {
+    const res = await fetch(apiUrl('/products', { stock_status: 'outofstock', per_page: '100', status: 'publish' }));
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (!Array.isArray(data)) return [];
+    return data.map(mapWooProduct);
+  } catch (error) {
+    console.error('[WooCommerce] Error en getOutOfStockProducts:', error);
+    return [];
+  }
+}
+
 function mapWooProduct(p: any): Product {
-  const cleanDescription = p.short_description ? p.short_description.replace(/<[^>]*>/g, '').trim() : undefined;
+  const cleanDescription = p.short_description
+    ? p.short_description.replace(/<[^>]*>/g, '').trim()
+    : undefined;
+
+  // Precio regular: siempre el precio sin oferta
+  const regularPrice = roundPrice(p.regular_price || p.price);
+
+  // Precio de oferta: solo si existe y es diferente al regular
+  const rawSale = p.sale_price && p.sale_price !== '' ? roundPrice(p.sale_price) : '';
+  const salePrice = rawSale && rawSale !== regularPrice ? rawSale : undefined;
+
+  // Precio actual que se muestra: si hay oferta, el de oferta; si no, el regular
+  const price = salePrice ?? regularPrice;
+
   return {
     id: p.id,
     sku: p.sku || String(p.id),
     barcode: p.sku || String(p.id),
     name: p.name,
-    price: p.price || p.regular_price || '0',
-    regularPrice: p.regular_price || p.price || '0',
-    salePrice: p.sale_price && p.sale_price !== '' ? p.sale_price : undefined,
+    price,
+    regularPrice,
+    salePrice,
     stockQuantity: typeof p.stock_quantity === 'number' ? p.stock_quantity : 0,
     stockStatus: p.stock_status ?? 'outofstock',
     category: mapCategory(p.categories),
