@@ -32,7 +32,16 @@ function parsePriceHtml(html: string): { regular: string; sale?: string; current
   if (!html) return { regular: '', current: '' };
 
   // Limpia el HTML dejando solo texto
-  const strip = (s: string) => s.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+  const strip = (s: string) => s
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&euro;/g, '€')
+    .replace(/&#8364;/g, '€')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .trim();
 
   // Precio tachado (precio original) — dentro de <del>
   const delMatch = html.match(/<del[^>]*>([\s\S]*?)<\/del>/i);
