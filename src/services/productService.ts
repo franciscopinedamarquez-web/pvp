@@ -202,3 +202,55 @@ export async function getBestSellers(): Promise<Product[]> {
     return [];
   }
 }
+
+export interface Category {
+  id: number;
+  name: string;
+  slug: string;
+  count: number;
+  parent: number;
+}
+
+export async function getCategories(): Promise<Category[]> {
+  try {
+    const res = await fetch(apiUrl('/products/categories', {
+      per_page: '100',
+      orderby: 'count',
+      order: 'desc',
+      hide_empty: 'true',
+    }));
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (!Array.isArray(data)) return [];
+    return data.map((c: any) => ({
+      id: c.id,
+      name: c.name,
+      slug: c.slug,
+      count: c.count,
+      parent: c.parent,
+    }));
+  } catch (error) {
+    console.error('[WooCommerce] Error en getCategories:', error);
+    return [];
+  }
+}
+
+export async function getProductsByCategory(categoryId: number, page: number): Promise<Product[]> {
+  try {
+    const res = await fetch(apiUrl('/products', {
+      category: String(categoryId),
+      per_page: '100',
+      page: String(page),
+      status: 'publish',
+      orderby: 'date',
+      order: 'desc',
+    }));
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (!Array.isArray(data)) return [];
+    return data.map(mapWooProduct);
+  } catch (error) {
+    console.error('[WooCommerce] Error en getProductsByCategory:', error);
+    return [];
+  }
+}

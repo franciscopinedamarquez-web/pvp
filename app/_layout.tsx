@@ -14,7 +14,7 @@ function TabIcon({ emoji, focused }: { emoji: string; focused: boolean }) {
 export default function RootLayout() {
   return (
     <>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <Tabs
         screenOptions={{
           headerStyle: { backgroundColor: Colors.surface, borderBottomColor: Colors.border, borderBottomWidth: 1 },
@@ -28,8 +28,9 @@ export default function RootLayout() {
         }}
       >
         <Tabs.Screen name="index" options={{ title: 'Panel', headerTitle: 'Alcalá Cómics Staff', tabBarIcon: ({ focused }) => <TabIcon emoji="🏠" focused={focused} /> }} />
-        <Tabs.Screen name="scanner" options={{ title: 'Escáner', headerTitle: '📷 Escáner de Productos', tabBarIcon: ({ focused }) => <TabIcon emoji="📷" focused={focused} /> }} />
-        <Tabs.Screen name="search" options={{ title: 'Buscar', headerTitle: '🔍 Buscar Producto', tabBarIcon: ({ focused }) => <TabIcon emoji="🔍" focused={focused} /> }} />
+        <Tabs.Screen name="scanner" options={{ title: 'Escáner', headerTitle: '📷 Escáner', tabBarIcon: ({ focused }) => <TabIcon emoji="📷" focused={focused} /> }} />
+        <Tabs.Screen name="search" options={{ title: 'Buscar', headerTitle: '🔍 Buscar', tabBarIcon: ({ focused }) => <TabIcon emoji="🔍" focused={focused} /> }} />
+        <Tabs.Screen name="categories" options={{ title: 'Categorías', headerTitle: '📂 Categorías', tabBarIcon: ({ focused }) => <TabIcon emoji="📂" focused={focused} /> }} />
       </Tabs>
     </>
   );
