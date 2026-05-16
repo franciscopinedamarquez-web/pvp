@@ -163,16 +163,22 @@ function extractAttribute(p: any, attributeName: string): string | undefined {
 
 export async function getLatestProducts(): Promise<Product[]> {
   try {
-    const res = await fetch(apiUrl('/products', {
-      per_page: '20',
-      status: 'publish',
-      orderby: 'date',
-      order: 'desc',
-    }));
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    if (!Array.isArray(data)) return [];
-    return data.map(mapWooProduct);
+    const allProducts: Product[] = [];
+    for (let page = 1; page <= 5; page++) {
+      const res = await fetch(apiUrl('/products', {
+        per_page: '100',
+        status: 'publish',
+        orderby: 'date',
+        order: 'desc',
+        page: String(page),
+      }));
+      if (!res.ok) break;
+      const data = await res.json();
+      if (!Array.isArray(data) || data.length === 0) break;
+      allProducts.push(...data.map(mapWooProduct));
+      if (data.length < 100) break;
+    }
+    return allProducts;
   } catch (error) {
     console.error('[WooCommerce] Error en getLatestProducts:', error);
     return [];
