@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, TextInput, FlatList,
   TouchableOpacity, ActivityIndicator, Keyboard,
@@ -6,10 +6,12 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Colors, Spacing, BorderRadius } from '../utils/theme';
-import { searchByText, getLatestProducts } from '../services/productService';
+import { searchByText, getLatestProducts, getBestSellers, getOutOfStockProducts } from '../services/productService';
 import type { Product } from '../services/productService';
 import ProductCard from '../components/ProductCard';
 import ProductDetail from '../components/ProductDetail';
+
+type Section = 'novedades' | 'masvendidos' | 'agotados' | null;
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -18,20 +20,26 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [novedades, setNovedades] = useState<Product[]>([]);
-  const [novLoading, setNovLoading] = useState(true);
-  const [novRefreshing, setNovRefreshing] = useState(false);
+  const [activeSection, setActiveSection] = useState<Section>(null);
+  const [sectionProducts, setSectionProducts] = useState<Product[]>([]);
+  const [sectionLoading, setSectionLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const inputRef = useRef<TextInput>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
-  useEffect(() => { loadNovedades(); }, []);
-
-  const loadNovedades = async () => {
-    setNovRefreshing(true);
+  const loadSection = async (section: Section, refresh = false) => {
+    if (!section) return;
+    if (section === activeSection && !refresh) { setActiveSection(null); return; }
+    setActiveSection(section);
+    setSectionLoading(true);
+    if (refresh) setRefreshing(true);
     try {
-      const products = await getLatestProducts();
-      setNovedades(products);
-    } finally { setNovLoading(false); setNovRefreshing(false); }
+      let products: Product[] = [];
+      if (section === 'novedades') products = await getLatestProducts();
+      else if (section === 'masvendidos') products = await getBestSellers();
+      else if (section === 'agotados') products = await getOutOfStockProducts();
+      setSectionProducts(products);
+    } finally { setSectionLoading(false); setRefreshing(false); }
   };
 
   const handleSearch = useCallback(async (text: string) => {
@@ -51,17 +59,21 @@ export default function HomeScreen() {
 
   if (selectedProduct) return <ProductDetail product={selectedProduct} onClose={() => setSelectedProduct(null)} />;
 
+  const SECTIONS = [
+    { key: 'novedades' as Section, label: 'Novedades', icon: '🆕' },
+    { key: 'masvendidos' as Section, label: 'Más vendidos', icon: '⭐' },
+    { key: 'agotados' as Section, label: 'Agotados hoy', icon: '⊘' },
+  ];
+
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
 
-        {/* Cabecera */}
         <View style={styles.header}>
           <Text style={styles.logo}>Alcalá Cómics</Text>
           <Text style={styles.logoSub}>Consultor de productos</Text>
         </View>
 
-        {/* Buscador */}
         <View style={styles.searchSection}>
           <View style={styles.inputWrapper}>
             <Text style={styles.searchIcon}>🔍</Text>
@@ -84,7 +96,6 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* Contenido */}
         {loading ? (
           <View style={styles.centerState}>
             <ActivityIndicator color={Colors.primary} size="large" />
@@ -108,13 +119,14 @@ export default function HomeScreen() {
             ListHeaderComponent={<Text style={styles.resultCount}>{results.length} producto{results.length !== 1 ? 's' : ''}</Text>}
           />
         ) : (
-          /* Panel principal — novedades */
           <FlatList
-            data={novedades}
+            data={activeSection ? sectionProducts : []}
             keyExtractor={item => item.id.toString()}
             keyboardShouldPersistTaps="handled"
             refreshControl={
-              <RefreshControl refreshing={novRefreshing} onRefresh={loadNovedades} tintColor={Colors.primary} />
+              activeSection ? (
+                <RefreshControl refreshing={refreshing} onRefresh={() => loadSection(activeSection, true)} tintColor={Colors.primary} />
+              ) : undefined
             }
             ListHeaderComponent={
               <View>
@@ -129,26 +141,47 @@ export default function HomeScreen() {
                   <Text style={styles.scanArrow}>→</Text>
                 </TouchableOpacity>
 
-                {/* Cabecera novedades */}
-                <View style={styles.novHeader}>
-                  <Text style={styles.novTitle}>🆕 Novedades</Text>
-                  <Text style={styles.novDate}>{new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}</Text>
+                {/* Botones de sección */}
+                <View style={styles.sectionButtons}>
+                  {SECTIONS.map(s => (
+                    <TouchableOpacity
+                      key={s.key}
+                      style={[styles.sectionBtn, activeSection === s.key && styles.sectionBtnActive]}
+                      onPress={() => loadSection(s.key)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.sectionBtnIcon}>{s.icon}</Text>
+                      <Text style={[styles.sectionBtnLabel, activeSection === s.key && styles.sectionBtnLabelActive]}>
+                        {s.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
 
-                {novLoading && (
+                {sectionLoading && (
                   <View style={styles.novLoading}>
                     <ActivityIndicator color={Colors.primary} size="small" />
-                    <Text style={styles.novLoadingText}>Cargando novedades...</Text>
+                    <Text style={styles.novLoadingText}>Cargando...</Text>
                   </View>
+                )}
+
+                {activeSection && !sectionLoading && sectionProducts.length > 0 && (
+                  <Text style={styles.resultCount}>{sectionProducts.length} producto{sectionProducts.length !== 1 ? 's' : ''}</Text>
                 )}
               </View>
             }
             ListEmptyComponent={
-              !novLoading ? (
+              activeSection && !sectionLoading ? (
                 <View style={styles.centerState}>
                   <Text style={styles.emptyIcon}>📦</Text>
-                  <Text style={styles.emptyTitle}>Sin novedades</Text>
+                  <Text style={styles.emptyTitle}>Sin productos</Text>
                   <Text style={styles.emptySubtitle}>Desliza hacia abajo para actualizar.</Text>
+                </View>
+              ) : !activeSection ? (
+                <View style={styles.centerState}>
+                  <Text style={styles.emptyIcon}>👆</Text>
+                  <Text style={styles.emptyTitle}>Selecciona una sección</Text>
+                  <Text style={styles.emptySubtitle}>O usa el buscador para encontrar cualquier producto.</Text>
                 </View>
               ) : null
             }
@@ -182,22 +215,33 @@ const styles = StyleSheet.create({
   clearText: { color: Colors.textMuted, fontSize: 14, fontWeight: '700' },
   scanButton: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surface,
-    marginHorizontal: Spacing.md, marginTop: Spacing.md, marginBottom: Spacing.md,
+    marginHorizontal: Spacing.md, marginTop: Spacing.md,
     padding: Spacing.md, borderRadius: BorderRadius.lg,
     borderWidth: 1, borderColor: Colors.primary + '66', gap: 10,
   },
   scanIcon: { fontSize: 22 },
   scanText: { flex: 1, color: Colors.primary, fontSize: 15, fontWeight: '700' },
   scanArrow: { color: Colors.primary, fontSize: 18, fontWeight: '700' },
-  novHeader: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: Spacing.md, marginBottom: Spacing.sm,
+  sectionButtons: {
+    flexDirection: 'row', gap: Spacing.sm,
+    marginHorizontal: Spacing.md, marginTop: Spacing.sm, marginBottom: Spacing.sm,
   },
-  novTitle: { color: Colors.textPrimary, fontSize: 15, fontWeight: '800' },
-  novDate: { color: Colors.textMuted, fontSize: 12 },
-  novLoading: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: Spacing.md, paddingBottom: Spacing.sm },
+  sectionBtn: {
+    flex: 1, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: Colors.surface, borderRadius: BorderRadius.md,
+    paddingVertical: 10, paddingHorizontal: 6,
+    borderWidth: 1, borderColor: Colors.border, gap: 4,
+  },
+  sectionBtnActive: {
+    backgroundColor: Colors.primary + '18',
+    borderColor: Colors.primary,
+  },
+  sectionBtnIcon: { fontSize: 20 },
+  sectionBtnLabel: { color: Colors.textSecondary, fontSize: 11, fontWeight: '600', textAlign: 'center' },
+  sectionBtnLabelActive: { color: Colors.primary, fontWeight: '700' },
+  novLoading: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm },
   novLoadingText: { color: Colors.textMuted, fontSize: 13 },
-  centerState: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xl },
+  centerState: { alignItems: 'center', justifyContent: 'center', padding: Spacing.xl },
   emptyIcon: { fontSize: 48, marginBottom: Spacing.md },
   emptyTitle: { color: Colors.textPrimary, fontSize: 18, fontWeight: '700', marginBottom: 8 },
   emptySubtitle: { color: Colors.textMuted, fontSize: 14, textAlign: 'center', lineHeight: 22 },
