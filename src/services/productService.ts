@@ -11,9 +11,16 @@ export interface Product {
   stockStatus: 'instock' | 'outofstock' | 'onbackorder';
   category: 'comics' | 'manga' | 'juegos' | 'merchandising' | 'libros';
   imageUrl?: string;
+  images: string[];
   description?: string;
+  fullDescription?: string;
   publisher?: string;
   author?: string;
+  attributes: { name: string; value: string }[];
+  weight?: string;
+  dimensions?: { length: string; width: string; height: string };
+  tags: string[];
+  categories: string[];
 }
 
 const WC_URL    = process.env.EXPO_PUBLIC_WC_URL    ?? 'https://www.alcalacomics.com/wp-json/wc/v3';
@@ -123,6 +130,20 @@ function mapWooProduct(p: any): Product {
   // Usamos price_html — es exactamente el precio que muestra el frontend
   const parsed = parsePriceHtml(p.price_html ?? '');
 
+  // Todas las imágenes del producto
+  const images: string[] = (p.images ?? []).map((img: any) => img.src).filter(Boolean);
+
+  // Todos los atributos como pares clave-valor
+  const attributes: { name: string; value: string }[] = (p.attributes ?? []).map((a: any) => ({
+    name: a.name,
+    value: Array.isArray(a.options) ? a.options.join(', ') : (a.option ?? ''),
+  })).filter((a: any) => a.value);
+
+  // Descripción larga limpia
+  const fullDescription = p.description
+    ? p.description.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim()
+    : undefined;
+
   return {
     id: p.id,
     sku: p.sku || String(p.id),
@@ -135,10 +156,17 @@ function mapWooProduct(p: any): Product {
     stockQuantity: typeof p.stock_quantity === 'number' ? p.stock_quantity : 0,
     stockStatus: p.stock_status ?? 'outofstock',
     category: mapCategory(p.categories),
-    imageUrl: p.images?.[0]?.src,
+    imageUrl: images[0],
+    images,
     description: cleanDescription,
+    fullDescription,
     publisher: extractAttribute(p, 'editorial') ?? extractAttribute(p, 'publisher'),
     author: extractAttribute(p, 'autor') ?? extractAttribute(p, 'author'),
+    attributes,
+    weight: p.weight || undefined,
+    dimensions: p.dimensions?.length ? p.dimensions : undefined,
+    tags: (p.tags ?? []).map((t: any) => t.name).filter(Boolean),
+    categories: (p.categories ?? []).map((c: any) => c.name).filter(Boolean),
   };
 }
 
