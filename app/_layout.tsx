@@ -24,7 +24,7 @@ export default function RootLayout() {
           tabBarActiveTintColor: Colors.primary,
           tabBarInactiveTintColor: Colors.textMuted,
           tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
-          headerLeft: () => <Text style={styles.headerLogo}>🦸 AC</Text>,
+          headerLeft: () => <Text style={styles.headerLogo}>AC</Text>,
         }}
       >
         <Tabs.Screen name="index" options={{ title: 'Panel', headerTitle: 'Alcalá Cómics Staff', tabBarIcon: ({ focused }) => <TabIcon emoji="🏠" focused={focused} /> }} />

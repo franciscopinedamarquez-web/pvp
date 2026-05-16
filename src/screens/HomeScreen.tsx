@@ -57,7 +57,7 @@ export default function HomeScreen() {
 
         {/* Cabecera */}
         <View style={styles.header}>
-          <Text style={styles.logo}>🦸 Alcalá Cómics</Text>
+          <Text style={styles.logo}>Alcalá Cómics</Text>
           <Text style={styles.logoSub}>Consultor de productos</Text>
         </View>
 
