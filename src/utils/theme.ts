@@ -1,30 +1,39 @@
 export const Colors = {
-  background: '#0f0a1e',
-  surface: '#1a1230',
-  surfaceElevated: '#231a42',
-  card: '#1e1535',
-  primary: '#ffd700',
-  primaryDark: '#e6c200',
-  primaryLight: '#ffe84d',
+  background: '#f5f5f0',
+  surface: '#ffffff',
+  surfaceElevated: '#f0ede8',
+  card: '#ffffff',
+
+  primary: '#e8a000',
+  primaryDark: '#c98900',
+  primaryLight: '#ffb800',
+
   accent: '#e63946',
-  accentLight: '#ff6b6b',
-  info: '#4cc9f0',
-  infoLight: '#7de8ff',
-  success: '#06d6a0',
-  successDark: '#04a87e',
-  warning: '#f4a261',
-  error: '#ef233c',
-  textPrimary: '#ffffff',
-  textSecondary: '#b8a9d4',
-  textMuted: '#6b5b8a',
-  textOnPrimary: '#0f0a1e',
-  border: '#2d2050',
-  borderLight: '#3d2e6b',
-  comics: '#e63946',
-  manga: '#7209b7',
-  juegos: '#2196f3',
-  merch: '#ff9800',
-  libros: '#4caf50',
+  accentLight: '#c0392b',
+
+  info: '#2196f3',
+  infoLight: '#1976d2',
+
+  success: '#2e7d32',
+  successDark: '#1b5e20',
+
+  warning: '#e65100',
+
+  error: '#c62828',
+
+  textPrimary: '#1a1a1a',
+  textSecondary: '#444444',
+  textMuted: '#888888',
+  textOnPrimary: '#ffffff',
+
+  border: '#e0ddd8',
+  borderLight: '#eeebe6',
+
+  comics: '#c0392b',
+  manga: '#6a1b9a',
+  juegos: '#1565c0',
+  merch: '#e65100',
+  libros: '#2e7d32',
 };
 
 export const Spacing = {
