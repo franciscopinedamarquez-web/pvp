@@ -21,18 +21,12 @@ const CAT_EMOJI: Record<Product['category'], string> = {
   comics: '📚', manga: '🎌', juegos: '🎲', merchandising: '🎁', libros: '📖',
 };
 
-function formatPrice(price: string): string {
-  const n = parseFloat(price);
-  if (isNaN(n)) return '—';
-  return n % 1 === 0 ? `${n} €` : `${n.toFixed(2).replace('.', ',')} €`;
-}
-
 export default function ProductCard({ product, onPress }: ProductCardProps) {
   const [imgError, setImgError] = useState(false);
   const categoryColor = CATEGORY_COLORS[product.category];
   const isOutOfStock = product.stockStatus === 'outofstock';
   const isLowStock = product.stockQuantity > 0 && product.stockQuantity <= 2;
-  const isOnSale = !!product.salePrice && product.salePrice !== product.regularPrice;
+  const isOnSale = !!product.salePrice;
   const stockColor = isOutOfStock ? Colors.error : isLowStock ? Colors.warning : Colors.success;
   const stockLabel = isOutOfStock ? 'Agotado' : isLowStock ? `${product.stockQuantity} ud` : `${product.stockQuantity} uds`;
 
@@ -56,14 +50,11 @@ export default function ProductCard({ product, onPress }: ProductCardProps) {
         <View style={styles.priceRow}>
           {isOnSale ? (
             <>
-              <Text style={styles.priceOld}>{formatPrice(product.regularPrice)}</Text>
-              <Text style={styles.priceSale}>{formatPrice(product.salePrice!)}</Text>
-              <View style={styles.saleBadge}>
-                <Text style={styles.saleBadgeText}>-{Math.round((1 - parseFloat(product.salePrice!) / parseFloat(product.regularPrice)) * 100)}%</Text>
-              </View>
+              <Text style={styles.priceOld}>{product.regularPrice}</Text>
+              <Text style={styles.priceSale}>{product.salePrice}</Text>
             </>
           ) : (
-            <Text style={styles.price}>{formatPrice(product.price)}</Text>
+            <Text style={styles.price}>{product.price}</Text>
           )}
         </View>
         <View style={[styles.stockRow, { borderColor: stockColor + '44', backgroundColor: stockColor + '14' }]}>
@@ -90,8 +81,6 @@ const styles = StyleSheet.create({
   price: { color: Colors.primary, fontSize: 20, fontWeight: '800' },
   priceSale: { color: Colors.accentLight, fontSize: 20, fontWeight: '800' },
   priceOld: { color: Colors.textMuted, fontSize: 12, textDecorationLine: 'line-through' },
-  saleBadge: { backgroundColor: Colors.accent, paddingHorizontal: 5, paddingVertical: 2, borderRadius: 4 },
-  saleBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
   stockRow: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, borderWidth: 1, alignSelf: 'flex-start' },
   stockDot: { width: 6, height: 6, borderRadius: 3 },
   stockText: { fontSize: 11, fontWeight: '700' },

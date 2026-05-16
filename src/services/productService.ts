@@ -6,6 +6,7 @@ export interface Product {
   price: string;
   regularPrice: string;
   salePrice?: string;
+  priceHtml: string;
   stockQuantity: number;
   stockStatus: 'instock' | 'outofstock' | 'onbackorder';
   category: 'comics' | 'manga' | 'juegos' | 'merchandising' | 'libros';
@@ -24,11 +25,29 @@ function apiUrl(path: string, params: Record<string, string> = {}): string {
   return `${WC_URL}${path}?${qs.toString()}`;
 }
 
-// Redondea a 2 decimales igual que WooCommerce en la web
-function roundPrice(value: string | undefined): string {
-  if (!value || value === '') return '';
-  const n = Math.round(parseFloat(value) * 100) / 100;
-  return isNaN(n) ? '' : n.toFixed(2);
+// Extrae precios del price_html de WooCommerce
+// price_html es exactamente lo que muestra el frontend
+// Ejemplo: <del>39,50 €</del><ins>37,53 €</ins>  o simplemente  39,50 €
+function parsePriceHtml(html: string): { regular: string; sale?: string; current: string } {
+  if (!html) return { regular: '', current: '' };
+
+  // Limpia el HTML dejando solo texto
+  const strip = (s: string) => s.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+
+  // Precio tachado (precio original) — dentro de <del>
+  const delMatch = html.match(/<del[^>]*>([\s\S]*?)<\/del>/i);
+  // Precio en oferta — dentro de <ins>
+  const insMatch = html.match(/<ins[^>]*>([\s\S]*?)<\/ins>/i);
+
+  if (delMatch && insMatch) {
+    const regular = strip(delMatch[1]);
+    const sale = strip(insMatch[1]);
+    return { regular, sale, current: sale };
+  }
+
+  // Sin oferta — precio simple
+  const current = strip(html);
+  return { regular: current, current };
 }
 
 export async function searchByBarcode(barcode: string): Promise<Product | null> {
@@ -92,24 +111,18 @@ function mapWooProduct(p: any): Product {
     ? p.short_description.replace(/<[^>]*>/g, '').trim()
     : undefined;
 
-  // Precio regular: siempre el precio sin oferta
-  const regularPrice = roundPrice(p.regular_price || p.price);
-
-  // Precio de oferta: solo si existe y es diferente al regular
-  const rawSale = p.sale_price && p.sale_price !== '' ? roundPrice(p.sale_price) : '';
-  const salePrice = rawSale && rawSale !== regularPrice ? rawSale : undefined;
-
-  // Precio actual que se muestra: si hay oferta, el de oferta; si no, el regular
-  const price = salePrice ?? regularPrice;
+  // Usamos price_html — es exactamente el precio que muestra el frontend
+  const parsed = parsePriceHtml(p.price_html ?? '');
 
   return {
     id: p.id,
     sku: p.sku || String(p.id),
     barcode: p.sku || String(p.id),
     name: p.name,
-    price,
-    regularPrice,
-    salePrice,
+    price: parsed.current,
+    regularPrice: parsed.regular,
+    salePrice: parsed.sale,
+    priceHtml: p.price_html ?? '',
     stockQuantity: typeof p.stock_quantity === 'number' ? p.stock_quantity : 0,
     stockStatus: p.stock_status ?? 'outofstock',
     category: mapCategory(p.categories),

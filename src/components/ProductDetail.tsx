@@ -20,21 +20,14 @@ const CAT_EMOJI: Record<Product['category'], string> = {
   comics: '📚', manga: '🎌', juegos: '🎲', merchandising: '🎁', libros: '📖',
 };
 
-function formatPrice(price: string): string {
-  const n = parseFloat(price);
-  if (isNaN(n)) return '—';
-  return n % 1 === 0 ? `${n} €` : `${n.toFixed(2).replace('.', ',')} €`;
-}
-
 export default function ProductDetail({ product, onClose }: ProductDetailProps) {
   const [imgError, setImgError] = useState(false);
   const categoryColor = CATEGORY_COLORS[product.category];
   const isOutOfStock = product.stockStatus === 'outofstock';
   const isLowStock = product.stockQuantity > 0 && product.stockQuantity <= 2;
-  const isOnSale = !!product.salePrice && product.salePrice !== product.regularPrice;
+  const isOnSale = !!product.salePrice;
   const stockColor = isOutOfStock ? Colors.error : isLowStock ? Colors.warning : Colors.success;
   const stockLabel = isOutOfStock ? 'AGOTADO' : isLowStock ? 'ÚLTIMAS UNIDADES' : 'EN STOCK';
-  const discount = isOnSale ? Math.round((1 - parseFloat(product.salePrice!) / parseFloat(product.regularPrice)) * 100) : 0;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -47,6 +40,8 @@ export default function ProductDetail({ product, onClose }: ProductDetailProps) 
         <View style={{ width: 80 }} />
       </View>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+
+        {/* Imagen */}
         <View style={styles.imageContainer}>
           {product.imageUrl && !imgError ? (
             <Image source={{ uri: product.imageUrl }} style={styles.image} resizeMode="contain" onError={() => setImgError(true)} />
@@ -59,24 +54,27 @@ export default function ProductDetail({ product, onClose }: ProductDetailProps) 
             <Text style={styles.catBadgeText}>{CATEGORY_LABELS[product.category]}</Text>
           </View>
         </View>
+
+        {/* Nombre y editorial */}
         <Text style={styles.name}>{product.name}</Text>
         {product.publisher && (
           <Text style={styles.publisher}>{product.publisher}{product.author ? ` · ${product.author}` : ''}</Text>
         )}
+
+        {/* Precio — exactamente igual que la web */}
         <View style={styles.priceBox}>
           {isOnSale ? (
             <>
-              <View style={styles.priceTopRow}>
-                <Text style={styles.priceOld}>{formatPrice(product.regularPrice)}</Text>
-                <View style={styles.discountBadge}><Text style={styles.discountText}>-{discount}%</Text></View>
-              </View>
-              <Text style={styles.priceFinal}>{formatPrice(product.salePrice!)}</Text>
+              <Text style={styles.priceOld}>{product.regularPrice}</Text>
+              <Text style={styles.priceFinal}>{product.salePrice}</Text>
             </>
           ) : (
-            <Text style={styles.priceFinal}>{formatPrice(product.price)}</Text>
+            <Text style={styles.priceFinal}>{product.price}</Text>
           )}
           <Text style={styles.priceLabel}>Precio de venta al público</Text>
         </View>
+
+        {/* Stock */}
         <View style={[styles.stockBox, { backgroundColor: stockColor + '12', borderColor: stockColor + '44' }]}>
           <View style={styles.stockLeft}>
             <Text style={[styles.stockNum, { color: stockColor }]}>{isOutOfStock ? '0' : product.stockQuantity}</Text>
@@ -86,11 +84,15 @@ export default function ProductDetail({ product, onClose }: ProductDetailProps) 
             <Text style={styles.stockBadgeText}>{stockLabel}</Text>
           </View>
         </View>
+
+        {/* Descripción */}
         {product.description ? (
           <View style={styles.descBox}>
             <Text style={styles.descText}>{product.description}</Text>
           </View>
         ) : null}
+
+        {/* Referencias */}
         <View style={styles.refBox}>
           <View style={styles.refRow}><Text style={styles.refLabel}>SKU</Text><Text style={styles.refVal}>{product.sku}</Text></View>
           <View style={styles.refDivider} />
@@ -98,6 +100,7 @@ export default function ProductDetail({ product, onClose }: ProductDetailProps) 
           <View style={styles.refDivider} />
           <View style={styles.refRow}><Text style={styles.refLabel}>ID interno</Text><Text style={styles.refVal}>#{product.id}</Text></View>
         </View>
+
       </ScrollView>
     </SafeAreaView>
   );
@@ -120,12 +123,9 @@ const styles = StyleSheet.create({
   name: { color: Colors.textPrimary, fontSize: 20, fontWeight: '800', lineHeight: 26, marginHorizontal: Spacing.md, marginBottom: 4 },
   publisher: { color: Colors.textMuted, fontSize: 13, marginHorizontal: Spacing.md, marginBottom: Spacing.md },
   priceBox: { backgroundColor: Colors.card, marginHorizontal: Spacing.md, borderRadius: BorderRadius.lg, padding: Spacing.md, borderWidth: 1, borderColor: Colors.border, marginBottom: Spacing.sm },
-  priceTopRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 },
-  priceOld: { color: Colors.textMuted, fontSize: 16, textDecorationLine: 'line-through' },
-  discountBadge: { backgroundColor: Colors.accent, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 5 },
-  discountText: { color: '#fff', fontSize: 12, fontWeight: '800' },
+  priceOld: { color: Colors.textMuted, fontSize: 18, textDecorationLine: 'line-through', marginBottom: 2 },
   priceFinal: { color: Colors.primary, fontSize: 40, fontWeight: '800', lineHeight: 44 },
-  priceLabel: { color: Colors.textMuted, fontSize: 11, marginTop: 2 },
+  priceLabel: { color: Colors.textMuted, fontSize: 11, marginTop: 4 },
   stockBox: { marginHorizontal: Spacing.md, borderRadius: BorderRadius.lg, padding: Spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, marginBottom: Spacing.sm },
   stockLeft: { flexDirection: 'row', alignItems: 'flex-end', gap: 6 },
   stockNum: { fontSize: 48, fontWeight: '800', lineHeight: 52 },
