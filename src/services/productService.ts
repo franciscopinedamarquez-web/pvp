@@ -160,3 +160,21 @@ function extractAttribute(p: any, attributeName: string): string | undefined {
   const attr = p.attributes.find((a: any) => (a.name ?? '').toLowerCase() === attributeName.toLowerCase());
   return attr?.options?.[0] ?? attr?.option;
 }
+
+export async function getLatestProducts(): Promise<Product[]> {
+  try {
+    const res = await fetch(apiUrl('/products', {
+      per_page: '20',
+      status: 'publish',
+      orderby: 'date',
+      order: 'desc',
+    }));
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (!Array.isArray(data)) return [];
+    return data.map(mapWooProduct);
+  } catch (error) {
+    console.error('[WooCommerce] Error en getLatestProducts:', error);
+    return [];
+  }
+}
